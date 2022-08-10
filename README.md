@@ -16,6 +16,42 @@ A pip-module to import clean a given variable from a Gist:
 
 ## Files herein
 
+### AnalyseA3M
+
+Don't blindly blame your MSA, Analyse what is in a a3m. [AnalyseA3M](analyse_a3m.py).
+This fetches Uniprot details of the entries and returns a pandas DataFrame for easy analysis.
+
+```python
+a3m = AnalyseA3M('VDAC2_BAK_tBID_2c974.a3m')
+a3m.load_uniprot_data()
+omnia = a3m.to_df()
+boney = a3m.to_boney_subset()
+print(f'{len(boney)} out of {len(omnia)} are tetrapods & boney-fish')
+a3m.display_name_tallies(a3m.to_boney_subset())
+boney.sample(5)
+```
+And do whatever filtering:
+
+```python
+# names are messy...
+cleaned = boney.name_B.str.lower()\
+                      .str.replace(r'( ?\d+)$','')\
+                      .str.replace(r' proteinous','')\
+                      .str.replace(r' protein','')\
+                      .str.replace(r'bcl 2','bcl2')\
+                      .str.strip()
+
+# some homologues have question marks...
+filtro = cleaned.isin(['bak', 'bcl2 antagonist/killer',
+                           'bax regulator', 
+                           #'bcl2', 'apoptosis regulator bcl 2',  # not sure.
+                          # 'apoptosis regulator bcl',
+                          # 'bcl domain containing'
+                         ])
+subsetted: pd.DataFrame = boney.loc[filtro & (boney.name_C == 'BH3 interacting domain death agonist')]
+a3m.dump_a3m(subsetted, 'VDAC2_BAK_tBID_filtered.a3m')
+```
+
 ### PyMOL alignment
 Make pretty multimodel PyMOL alignment: [pymol_assemble](pymol_assemble.py)
 ```python
@@ -57,8 +93,18 @@ A series of PDBs for a blog post I will one day finish:
 A collection of snippets for working with the University of Oxford's rescomp cluster (a SGE job scheduler system):
 [GitHub: matteoferla/rescomp-tests](https://github.com/matteoferla/rescomp-tests)
 
+But in terms of ColabFold on the cluster,
+you need the internet for the MMSeq2 step (or make your own MSA). However, if you request zero models where there is 
+internet it will generate a A3M. This can be used as a custom job on a node with no internet.
+Note there is a hackish fix for now required — see below.
+
+All my work in Rescomp is on a jupyter notebook forwarded from a private node.
+Do not run notebooks in the log-in node. Sure, the R folk do it all the time, but do be a better citizen.
+Get an interactive job instead.
+
 ```python
 %%rescomp jobname=xxxx queue=short.qc cores=6
+# needs to have had import rescomp on previous cell.
 
 # hashed:
 jobname = 'xxxx'
