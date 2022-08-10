@@ -23,6 +23,8 @@ Don't blindly blame your MSA, Analyse what is in a a3m. [AnalyseA3M](analyse_a3m
 This fetches Uniprot details of the entries and returns a pandas DataFrame for easy analysis.
 
 ```python
+from IPython.display import display
+
 from gist_import import GistImporter
 gi = GistImporter.from_github('https://github.com/matteoferla/Snippets-for-ColabFold/blob/main/analyse_a3m.py')
 AnalyseA3M = gi['AnalyseA3M']
@@ -33,11 +35,8 @@ omnia = a3m.to_df()
 boney = a3m.to_boney_subset()
 print(f'{len(boney)} out of {len(omnia)} are tetrapods & boney-fish')
 a3m.display_name_tallies(a3m.to_boney_subset())
-boney.sample(5)
-```
-And do whatever filtering:
-
-```python
+display(boney.sample(5))
+# And do whatever filtering:
 # names are messy...
 cleaned = boney.name_B.str.lower()\
                       .str.replace(r'( ?\d+)$','')\
@@ -45,7 +44,6 @@ cleaned = boney.name_B.str.lower()\
                       .str.replace(r' protein','')\
                       .str.replace(r'bcl 2','bcl2')\
                       .str.strip()
-
 # some homologues have question marks...
 filtro = cleaned.isin(['bak', 'bcl2 antagonist/killer',
                            'bax regulator', 
@@ -60,16 +58,22 @@ a3m.dump_a3m(subsetted, 'VDAC2_BAK_tBID_filtered.a3m')
 ### PyMOL alignment
 Make pretty multimodel PyMOL alignment: [pymol_assemble](pymol_assemble.py)
 ```python
-align(jobname='VDAC2_BAK_tBID_3693c', bg_color='white', use_shaders=0, ray_trace_mode=3)
+from gist_import import GistImporter
+gi = GistImporter.from_github('https://github.com/matteoferla/Snippets-for-ColabFold/blob/main/pymol_assemble.py')
+pymol_assemble = gi['align']
+
+pymol_assemble(jobname='VDAC2_BAK_tBID_3693c', bg_color='white', use_shaders=0, ray_trace_mode=3)
 ```
 
 ### Chop up
 Chop up an alphafold as a series of template with pLDDT > 70%: [chop](chop.py)
 
 ```python
-folder = 'templates'
+from gist_import import GistImporter
+gi = GistImporter.from_github('https://github.com/matteoferla/Snippets-for-ColabFold/blob/main/chop.py')
+split_n_save = gi['split_n_save']
 
-split_n_save('P45880', folder)
+split_n_save('P45880', folder = 'templates')
 ```
 ## PyRosetta
 
@@ -84,7 +88,8 @@ called [AlphaFill](https://alphafill.eu/)
 
 ## See also
 
-Uniprot ported gnomAD variants:
+Uniprot ported gnomAD variants (AF2 runs off Uniprot and gnomAD off Ensembl 
+and they differ in definition of caninical sequence):
 
 [GitHub: matteoferla/Uniprot-ported-gnomADs](https://github.com/matteoferla/Uniprot-ported-gnomADs)
 
