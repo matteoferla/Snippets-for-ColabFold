@@ -11,8 +11,9 @@ These may be handy:
 A Gist to convert a colab notebook to a Jupyter notebook:
 [Gist: matteoferla/colab2jupyter.py](https://gist.github.com/matteoferla/15b483ab8f0c78293606dad91a360f9e)
 
-A pip-module to import clean a given variable from a Gist:
+A pip-module to import clean a given variable from a Gist, which features below.
 [pypi: gist-import](https://pypi.org/project/gist-import/)
+> pip install gist-import
 
 ## Files herein
 
@@ -22,6 +23,10 @@ Don't blindly blame your MSA, Analyse what is in a a3m. [AnalyseA3M](analyse_a3m
 This fetches Uniprot details of the entries and returns a pandas DataFrame for easy analysis.
 
 ```python
+from gist_import import GistImporter
+gi = GistImporter.from_github('https://github.com/matteoferla/Snippets-for-ColabFold/blob/main/analyse_a3m.py')
+AnalyseA3M = gi['AnalyseA3M']
+
 a3m = AnalyseA3M('VDAC2_BAK_tBID_2c974.a3m')
 a3m.load_uniprot_data()
 omnia = a3m.to_df()
