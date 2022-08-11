@@ -91,6 +91,7 @@ ipyplot.plot_images(urls.loc[~urls.isna()].values,
                     pretties.loc[~urls.isna()].values,
                     img_width=150)
 ```
+![animals](animals.png)
 
 ### PyMOL alignment
 Make pretty multimodel PyMOL alignment: [pymol_assemble](pymol_assemble.py)
