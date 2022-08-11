@@ -55,6 +55,43 @@ subsetted: pd.DataFrame = boney.loc[filtro & (boney.name_C == 'BH3 interacting d
 a3m.dump_a3m(subsetted, 'VDAC2_BAK_tBID_filtered.a3m')
 ```
 
+### See animals
+
+An addendum to the above is being able to see what the Latin name is...
+This gist ([Gist wiki_species_photo.py](https://gist.github.com/matteoferla/313b5c7e1845f36205b4b9dcf05be10d))
+has a class that when called with a species name gives the Wikipedia thumbnail.
+
+```python
+from IPython.display import display, Image
+from gist_import import GistImporter
+
+gi = GistImporter('313b5c7e1845f36205b4b9dcf05be10d')
+WikiSpeciesPhoto = gi['WikiSpeciesPhoto']
+
+w = WikiSpeciesPhoto('Lithobates catesbeianus', throw_error=True)
+if w.preferred_name != w.species:
+    print(f'{w.species} is commonly called {w.preferred_name}')
+display(Image(w.image)) # image is a PIL image
+```
+
+So in the case of an A3M dataframe, one could do
+
+```python
+import operator
+import functools
+import pandas as pd
+import ipyplot
+
+df: pd.DataFrame = a3m.to_df()
+subset: pd.DataFrame = df.loc[...]
+wikis:pd.Series = subset.species.apply(functools.partial(WikiSpeciesPhoto, catch_error=True, retrieve_image=False))
+urls:pd.Series = wikis.apply(operator.attrgetter('image_url'))
+pretties = wikis.apply(operator.attrgetter('preferred_name'))
+ipyplot.plot_images(urls.loc[~urls.isna()].values, 
+                    pretties.loc[~urls.isna()].values,
+                    img_width=150)
+```
+
 ### PyMOL alignment
 Make pretty multimodel PyMOL alignment: [pymol_assemble](pymol_assemble.py)
 ```python
