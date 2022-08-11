@@ -1,14 +1,13 @@
-import os
-import re
-import json
-import functools
 import itertools
+import json
 import operator
-import requests
-from Bio import pairwise2
-from Bio import SeqIO
+import re
+from typing import Optional
+
 import pandas as pd
-from typing import Optional, Callable, Dict, Any
+import requests
+from Bio import SeqIO
+from Bio import pairwise2
 from IPython.display import display, HTML
 
 
@@ -55,7 +54,7 @@ class AnalyseA3M:
                 self.seqs.append(str(record.seq).replace('\n', ''))
         assert len(self.pairs), 'There are no sequences...'
         self.n_protein = len(self.pairs[0])
-        self.lengths = list(map(int, '#294,211,135	1,1,1'[1:].split('\t')[0].split(',')))
+        self.lengths = list(map(int, self._first_line[1:].split('\t')[0].split(',')))
         # last paired
         self.last_pair = 0
         for pair in self.pairs[1:]:
@@ -91,21 +90,7 @@ class AnalyseA3M:
         with open(filename, 'w') as fh:
             json.dump(self.uniprot_data, fh)
 
-    def nested_item_getter(self, *keys) -> Callable[[Dict], Any]:
-        """
-         This is a JSON dictionary mining trick.
-         It is function factory.
-         It is like ``operator.itemgetter`` but its returned fun goes down subsequent keys in a nested dictionary,
-         ```python
-         a3m.nested_item_getter('proteinDescription', 'recommendedName', 'fullName', 'value'))
-         ```
-
-        This snippet was copied from elsewhere, but is not from michelanglo,
-        which dates back to the XML days.
-
-        :param keys:
-        :return:
-        """
+    def nested_item_getter(self, *keys):
 
         def getter(uniprot):
             sub = self[uniprot]
@@ -135,13 +120,14 @@ class AnalyseA3M:
             end = begin + self.lengths[i] + 1
         r = slice(begin, end)
         # insertions in a3m are lowercase
-        clean_seq = seqs.apply(lambda s: re.sub('[^A-Z\-]', '', s)[r])
+        clean_seq = seqs.apply(lambda s: re.sub('[^A-Z-]', '', s)[r])
         # I want iterations per aa of interations per sequence
         matcher = pairwise2.identity_match()
-        packed_matcher = lambda c: matcher(*c)  # dumb, but this get confusing quickly below...
-        seq_matcher = lambda pair: sum(map(packed_matcher, pair))
-        s_iter = clean_seq.apply(lambda s: zip(s, a3m.seqs[0][r]))
-        return s_iter.apply(seq_matcher) / len(self.seqs[0][r])
+        # dumb, but this get confusing quickly below...
+        packed_matcher = lambda c: matcher(*c)  # noqa: E731 Guido doesn't like this, but I do
+        seq_matcher = lambda pair: sum(map(packed_matcher, pair))  # noqa: E731 sorry Guido
+        s_iter = clean_seq.apply(lambda s: zip(s, self.seqs[0][r]))
+        return s_iter.apply(seq_matcher) / len(self.seqs[0][r].replace('-', ''))
 
     def to_df(self) -> pd.DataFrame:
         """
@@ -162,7 +148,8 @@ class AnalyseA3M:
         if not self.uniprot_data:
             self._retrieve_uniprots()
 
-        combine = lambda A, B: pd.Series(zip(A.values, B.values)).apply(lambda ab: ab[0] if ab[0] else ab[1])
+        to_tuple_series = lambda A, B: pd.Series(zip(A.values, B.values))   # noqa: E731
+        combine = lambda A, B: to_tuple_series(A, B).apply(lambda ab: ab[0] if ab[0] else ab[1])  # noqa: E731
         # make table
         df = pd.DataFrame(dict(pair=self.pairs[1:self.last_pair + 1], seq=self.seqs[1:self.last_pair + 1]))
         df['identity'] = self._calc_identity(df.seq)
@@ -174,12 +161,8 @@ class AnalyseA3M:
                 self.nested_item_getter('proteinDescription', 'submissionNames', 0, 'fullName', 'value'))
             recommended = df[letter].apply(
                 self.nested_item_getter('proteinDescription', 'recommendedName', 'fullName', 'value'))
-            df[f'name_{letter}'] = combine(recommended, submitted).fillna('Unnamed') \
-                .str.replace('isoform .*', '') \
-                .str.replace('like', '') \
-                .str.replace('homologous', '') \
-                .str.replace('-', ' ') \
-                .str.replace('  ', ' ')
+            df[f'name_{letter}'] = combine(recommended, submitted).fillna('Unnamed')
+            # , regex=True does not work on .str.extract
             df[f'number_{letter}'] = df[f'name_{letter}'].fillna('').astype(str).str.extract(r'(\d+)')[0].astype(float)
         df['species'] = df.A.apply(self.nested_item_getter('organism', 'scientificName'))
         for i, taxon in enumerate(('domain', 'kingdom', 'superphylum', 'phylum', 'subphylum', 'order')):
@@ -187,9 +170,38 @@ class AnalyseA3M:
         self.df = df
         return self.df
 
+    def clean_name(self, name_series: pd.Series, genename: Optional[str] = None) -> pd.Series:
+        """
+        Returns a lowercase series of names without words like isoform X3, homolog or protein.
+        If a gene name is passed, then any variant with spaces or similar is removed. e.g. B.L.T. -> blt
+        """
+        if genename:
+            pattern = re.compile(''.join(map(lambda c: f'{c}\W?', str(genename))))  # noqa: it is valid.
+        else:
+            pattern = re.compile('This is just fluff that will never match')
+        return name_series.fillna('Unnamed') \
+            .astype(str) \
+            .str.lower() \
+            .str.replace(r'isoform .*', '', regex=True) \
+            .str.replace('like', '') \
+            .str.replace('homologous', '') \
+            .str.replace('homologue', '') \
+            .str.replace('homolog', '') \
+            .str.replace('-', ' ') \
+            .str.replace(r'( ?\d+)$', '', regex=True) \
+            .str.replace(r' proteinous', '') \
+            .str.replace(r' protein', '') \
+            .str.replace(pattern, '', regex=True) \
+            .str.replace('  ', ' ') \
+            .str.strip()
+
     def _check_df(self, df: Optional[pd.DataFrame] = None, wanted=()) -> pd.DataFrame:
-        if df is None:
+        if df is not None:
+            pass
+        elif len(self.df):
             df = self.df
+        else:
+            df = self.to_df()
         assert len(df), 'Can only work w/ non-zero length dataframes'
         for colname in wanted:
             assert colname in df.columns, f'This is a nonstandard dataframe: no {colname}'
