@@ -2,10 +2,6 @@
 A collections of Pythonic snippets for working with ColabFold.
 
 ## Note
-I am a biochemist not a geneticist.
-I write in Python and do not use R. Please do not email me asking for a R snippet.
-
-## Second note
 These may be handy:
 
 A Gist to convert a colab notebook to a Jupyter notebook:
@@ -135,6 +131,11 @@ A series of PDBs for a blog post I will one day finish:
 
 [GitHub: GitHub: matteoferla/autophagic-cell-death-complex-models](https://github.com/matteoferla/autophagic-cell-death-complex-models)
 
+
+## Note
+
+I am a biochemist not a geneticist.
+I write in Python and do not use R. Please do not email me asking for a R snippet.
 
 ## Cluster Footnote
 
