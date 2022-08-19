@@ -14,7 +14,7 @@ def get_diversity(alignment_filename: str, gene_i: int = 0) -> List[Set[str]]:
     Returns a list of sets of AAs (with no gaps)
     '''
     # ## Parse
-    assert os.path.splitext(alignment_filename)[1] == '.a3m'
+    assert os.path.splitext(alignment_filename)[1] == '.a3m', 'Only A3M files are supported'
     headers: List[str] = []
     seqs: List[str] = []
     with open(alignment_filename, 'r') as fh:
