@@ -7,7 +7,8 @@ These may be handy:
 A Gist to convert a colab notebook to a Jupyter notebook:
 [Gist: matteoferla/colab2jupyter.py](https://gist.github.com/matteoferla/15b483ab8f0c78293606dad91a360f9e)
 
-A pip-module to import clean a given variable from a Gist, which features below.
+A pip-module to import cleanly a given variable from a Gist, which features below
+(clean, as in, without polluting the main namespace).
 [pypi: gist-import](https://pypi.org/project/gist-import/)
 > pip install gist-import
 
