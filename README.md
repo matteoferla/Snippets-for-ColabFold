@@ -196,7 +196,7 @@ $CONDA_DEFAULT_ENV/bin/colabfold_batch test.clean.a3m test3 --cpu --model-type A
 ```
 
 `$CONDA_DEFAULT_ENV` is a passed env variable to Python, so depending where bash it may not be visible.
-The first two lines in a A3M for a concatention go like:
+The first two lines in a A3M for a concatenation go like:
 
     #👾,👾,👾	👻,👻,👻
     >101	102	103
