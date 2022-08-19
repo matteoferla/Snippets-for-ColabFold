@@ -19,7 +19,7 @@ def retrieve_uniprot_data(uniprot: str) -> dict:
 
 class AnalyseA3M:
     """
-    Given a ColabFold alignment via MMseqs2,
+    Given a ColabFold alignment via MMseqs2, i.e. fetureing Uniprot ids (not NCBI ids)
     look up what the constituents are in order to debug with a complex failed to be predicted.
 
     This is primarily intended for human protein complexes, which are a lot less tidy than prokaryotic ones.

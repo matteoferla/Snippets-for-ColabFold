@@ -15,8 +15,9 @@ A pip-module to import clean a given variable from a Gist, which features below.
 
 ### AnalyseA3M
 
-Don't blindly blame your MSA, Analyse what is in a a3m. [AnalyseA3M](analyse_a3m.py).
-This fetches Uniprot details of the entries and returns a pandas DataFrame for easy analysis.
+Don't blindly blame your MSA, Analyse what is in a a3m! [AnalyseA3M](analyse_a3m.py).
+This fetches **Uniprot** details of the entries and returns a pandas DataFrame for easy analysis
+(Colabfold-MMSeqs2 runs on Uniprot).
 
 ```python
 from IPython.display import display
@@ -88,6 +89,121 @@ ipyplot.plot_images(urls.loc[~urls.isna()].values,
                     img_width=150)
 ```
 ![animals](animals.png)
+
+### Colour by diversity from A3M
+
+Colour a PDB by the diversity of the A3M: [color_by_a3m_diversity](color_by_a3m_diversity.py).
+Technically, it is just the AA count, so not really conservation as 
+NB. American spelling is adopted within the code.
+
+```python
+from typing import List, Set
+from gist_import import GistImporter
+gi = GistImporter.from_github('https://github.com/matteoferla/Snippets-for-ColabFold/blob/main/color_by_a3m_diversity.py')
+get_diversity = gi['get_diversity']
+map_diversity = gi['map_diversity']
+pdbblock:str = requests.get(f'https://alphafold.ebi.ac.uk/files/AF-{uniprot}-F1-model_v3.pdb').text
+diversity:List[Set[str]] = get_diversity('foo.a3m')
+map_diversity(pdbblock, diversity, outfile='foo.pse')
+```
+
+![img.png](conservation.png)
+
+### Blast to A3M
+
+This is very much WIP as the results are poor.
+The test consists of concatenating high-similarity sequences before clustering and alignment.
+
+```python
+import pandas as pd
+from typing import List, Set
+from IPython.display import display
+import functools
+from gist_import import GistImporter
+gi = GistImporter.from_github('https://github.com/matteoferla/Snippets-for-ColabFold/blob/main/blast_for_a3m.py')
+Blaster = gi['Blaster']
+get_common_species = gi['get_common_species']
+
+# ## Do blasts via NBCI website
+vdac2 = Blaster.from_uniprot('P45880')
+bak = Blaster.from_uniprot('O08734')
+tBID_seq = '...'
+tbid = Blaster(tBID_seq)
+# these will have a df as `results`
+dfs = (vdac2.results, bak.results, tbid.results)
+```
+These tables may be rough... with gene we do not want to use.
+The following will filter against a set of shortlists of names,
+and return a df (`combo`) with the genes per species.
+
+```python
+# ## display what there is 
+shortlisted = {'voltage-dependent anion-selective channel protein 1',
+ 'voltage-dependent anion-selective channel protein 2',
+'BCL2 antagonist/killer 1 S homeolog',
+ 'apoptosis regulator BAX',
+ 'bcl-2 homologous antagonist/killer',
+ 'Bcl-2 homologous antagonist/killer 2',
+'BH3 interacting domain death agonist',
+ 'BH3 interacting domain death agonist S homeolog',
+ 'BH3-interacting domain death agonist',}
+
+dfs = [df.loc[df.names.apply(lambda l: map(Blaster.clean, l)).apply(set).apply(shortlisted.intersection).apply(len).astype(bool)] for df in dfs]
+common: Set[str] = get_common_species(*dfs)
+
+for df in dfs:
+    has_common: pd.Series = df.specieses.apply(set).apply(common.intersection).apply(len).astype(bool)
+    has_score: pd.Series = df.score > 100
+    df['keep'] = has_common & has_score & df.novel_species
+
+subdfs = [df.loc[df.keep] for df in dfs]
+combo = pd.concat([df.set_index('common_species').matched_seq for df in subdfs], axis=1)
+combo.columns=['VDAC2', 'BAK', 'tBID']
+print(len(combo))
+display((~combo.isna()).sum())
+combo = combo.loc[combo.apply(lambda row: all([isinstance(row[col], str) for col in row.index]), axis=1)]
+print('Species in final', len(combo))
+for df in subdfs:
+    cleaned = df.names.apply(lambda l: map(Blaster.clean, l)).apply(set)
+    print('*'*20)
+    display(functools.reduce(set.union, cleaned, set()))
+```
+
+Now things get horrible and experimental.
+
+```python
+# lets concatenate with an impossible to miss spacer.
+
+junction = 'PWPWPWP'
+with open('blasted.fa', 'w') as fh:
+    for species, seq in combo.apply(lambda row: junction.join(row.to_list()), axis=1).iteritems():
+        fh.write(f'>{species}\n{seq}\n')
+```
+
+```bash
+# downloads
+conda install -c conda-forge -c bioconda muscle hhsuite mmseqs2 -y
+wget https://github.com/soedinglab/hh-suite/raw/master/scripts/reformat.pl
+perl reformat.pl fas a3m test_msa.fasta test_msa.a3m -uc
+
+$CONDA_DEFAULT_ENV/bin/mmseqs easy-cluster blasted.fa out out --min-seq-id 0.9 -c 0.9 --cov-mode 1
+grep '>' out_rep_seq.fasta | wc -l
+$CONDA_DEFAULT_ENV/bin/muscle -align out_rep_seq.fasta -output out_al.fasta
+STOP manually reposition human on top
+wget https://github.com/soedinglab/hh-suite/raw/master/scripts/reformat.pl
+perl reformat.pl fas a3m out_al.fasta out.a3m
+$CONDA_DEFAULT_ENV/bin/colabfold_batch test.clean.a3m test3 --cpu --model-type AlphaFold2-multimer-v2 --data '../ColabFoldData' --pair-mode paired
+```
+
+`$CONDA_DEFAULT_ENV` is a passed env variable to Python, so depending where bash it may not be visible.
+The first two lines in a A3M for a concatention go like:
+
+    #👾,👾,👾	👻,👻,👻
+    >101	102	103
+
+where 👾 is the length of each peptide, 👻 is the cardinality (e.g. 1 = single copy),
+the 101 etc. actually have cardinality in there, i.e. 100+👻.
+
 
 ### PyMOL alignment
 Make pretty multimodel PyMOL alignment: [pymol_assemble](pymol_assemble.py)
