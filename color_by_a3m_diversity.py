@@ -48,7 +48,7 @@ def map_diversity(pdbblock: str, diversity: List[Set[str]], outfile='colored.pse
     with pymol2.PyMOL() as pymol:
         pymol.cmd.read_pdbstr(pdbblock, 'alphafold')
         for i, d in enumerate(diversity):
-            pymol.cmd.alter(f'alphafold and resi {i + 1}', f'b={d}')
+            pymol.cmd.alter(f'alphafold and resi {i + 1}', f'b={len(d)}')
         pymol.cmd.sort()
         pymol.cmd.spectrum('b', 'white yellow red', minimum=1, maximum=10)
         pymol.cmd.save(outfile)
