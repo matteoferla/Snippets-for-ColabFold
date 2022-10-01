@@ -1,5 +1,10 @@
 # Snippets-for-ColabFold
 A collections of Pythonic snippets for working with ColabFold.
+This may evolve into a proper Python package in the future. But for now, it's just a collection of snippets.
+
+If you want to make it into a package, please feel free to use the snippets without any attribution or credit etc.
+
+Due to the unplannedness, `AnalyseA3M` and `Blaster` reinvent each other.
 
 ## Note
 These may be handy:
@@ -346,4 +351,61 @@ with open(batch.__file__.replace('.py', '.bk.py'), 'w') as fh:
           
 with open(batch.__file__, 'w') as fh:
     fh.write(code.replace('if unpaired_msa is None:', 'if unpaired_msa is None or unpaired_msa[sequence_index] == "":'))
+```
+## Blanking
+Given positions that is not of interest for the complex, blank it with the value of the first sequence.
+The following worked (check with color_by_a3m), but did not work for a satisfactory inference.
+I have not improved or elaborated upon it.
+
+I got the list of position in PyMOL, by aligning a model to a OPM model of a homologue and got everything
+whose z axis was below a given value in the PDB —in Orientation of Protein in the Membrane (OPM) models,
+the membrane is ± 12 Å or something from the xy plane. But one can dream up a thousand ways to do it.
+
+```python
+from typing import List, Optional, Tuple, Union, Dict
+
+def get_alignment(alignment_filename:str):
+    """This is a very simple reader... AnalyseA3M is better"""
+    fh = open(alignment_filename, 'r')
+    headers = []
+    first_line = next(fh).strip()
+    seqs = []
+    seq = ''
+    for line in fh:
+        if not line:
+            pass
+        if line[0] == '>':
+            headers.append(line.strip())
+            if seq:
+                seqs.append(seq)
+                seq = ''
+        else:
+            seq += line.strip()
+    seqs.append(seq)
+    fh.close()
+    return first_line, headers, seqs
+
+def write_alignment(out_filename:str, first_line:str, headers:list, seqs:list):
+    N = '\n'  # sloppiness from ye olde dayes
+    out = open(out_filename, 'w')
+    out.write(first_line + N)
+    for header, seq in zip(headers, seqs):
+        out.write(header + N)
+        out.write(seq + N)
+    out.close()
+    
+def blank_positions(seqs:List[str], exhaurienda:List[int], msa_offset:int=0):
+    # `to empty out` in Latin is `exhaurio`
+    """Converts the position (one indexed) specified to the same 
+    as the first sequence in sequences. If the MSA is offset relative to the sequence, use ``msa_offset``"""
+    exhaurienda: List[int] = [e - msa_offset for e in exhaurienda if e > msa_offset]
+    ref = seqs[0]
+    # replacements is zero indexed...
+    replacements: Dict[int, str] = {c-1: ref[c-1] for c in exhaurienda}
+    new_seqs: List[str] = [ref]
+    for seq in seqs[1:]:
+        nongap_replacements = {i: r for i, r in replacements.items() if seq[i] != '-'}
+        new_seq:str = ''.join([nongap_replacements.get(i, s) for i, s in enumerate(seq)])
+        new_seqs.append(new_seq)
+    return new_seqs
 ```
