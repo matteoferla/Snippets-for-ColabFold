@@ -3,7 +3,7 @@ Main function: align
 """
 
 import warnings
-from typing import Optional
+from typing import Optional, Dict
 
 import numpy as np
 import os
@@ -16,8 +16,23 @@ from matplotlib import cm
 def align(jobname: str,
           folder='.',
           align_chain='B',
-          bg_color: Optional[str] = None, **settings):
+          offset: Optional[Dict[str, int]] = None,
+          bg_color: Optional[str] = None,
+          **settings):
+    """
+    Given a jobname and a folder,
+    make a pse file with those aligned against chain `align_chain`.
+
+    :param jobname: jobname (with hash if present)
+    :param folder: results folder... the A3M can be anywhere else, I don't care
+    :param align_chain: a chain letter
+    :param offset: e.g. {'A': 400} will offset chain A by 400.
+    :param bg_color: a PyMol acceptable colour, like white or limon (ie. non-standard) or 0x preficed hex code
+    :param settings: Unpacked named arguments: anything you'd pass to pymol.cmd.set(key, value)
+    :return:
+    """
     modelnames = []
+    outfile = f'{jobname}.pse'
     with pymol2.PyMOL() as pymol:
         top_ranked = None
         for filename in os.listdir(folder):
@@ -32,6 +47,7 @@ def align(jobname: str,
             elif match_unfinished:
                 warnings.warn('The analyses are not complete!')
                 modelname = f'model{match_unfinished.group("model")}'
+                outfile = f'{jobname}_unfinished.pse'
                 top_ranked = modelname
             else:
                 continue
@@ -47,14 +63,13 @@ def align(jobname: str,
         print(f'job {jobname} has {num_models} models')
         # 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds'
         # https://matplotlib.org/stable/gallery/color/colormap_reference.html
-        color_maps = {
-            'A': map(cm.get_cmap('Greys'), np.arange(0, 1, 1 / num_models)),  # colab multimer does not use A.
-            'B': map(cm.get_cmap('Greens'), np.arange(0, 1, 1 / num_models)),
-            'C': map(cm.get_cmap('Blues'), np.arange(0, 1, 1 / num_models)),
-            'D': map(cm.get_cmap('Reds'), np.arange(0, 1, 1 / num_models)),
-            'E': map(cm.get_cmap('Purples'), np.arange(0, 1, 1 / num_models)),
-            'F': map(cm.get_cmap('Oranges'), np.arange(0, 1, 1 / num_models)),
-        }
+        # white is #FFFFFF, black is #000000
+        step = 1 / (num_models+1)
+        steps = np.arange(0+step, 1, step)
+        # colab multimer does not use A.
+        color_schemes = {'A': 'Greys', 'B': 'Greens', 'C': 'Reds', 'D': 'Blues', 'E': 'Purples', 'F': 'Oranges'}
+        print(color_schemes)
+        color_maps = {chain: map(cm.get_cmap(scheme_name), steps) for chain, scheme_name in color_schemes.items()}
         n_chains = pymol.cmd.select('name CA and resi 1 and model1')
         subcolor_maps = {chr(66 + i): color_maps[chr(66 + i)] for i in range(n_chains)}
         for modelname in modelnames:
@@ -79,7 +94,11 @@ def align(jobname: str,
             pymol.cmd.bg_color(bg_color)
         for setting, value in settings.items():
             pymol.cmd.set(setting, value)
-        pymol.cmd.save(f'{jobname}.pse')
-
+        if offset:
+            for chain in offset:
+                pymol.cmd.alter(f'chain {chain}', f'resv+={offset[chain]}')
+            pymol.cmd.sort()
+        pymol.cmd.save(outfile)
+    # pymol closed.
     # Green blue red
-    display(FileLink(f'{jobname}.pse'))
+    display(FileLink(outfile))
