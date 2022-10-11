@@ -195,7 +195,7 @@ perl reformat.pl fas a3m test_msa.fasta test_msa.a3m -uc
 $CONDA_DEFAULT_ENV/bin/mmseqs easy-cluster blasted.fa out out --min-seq-id 0.9 -c 0.9 --cov-mode 1
 grep '>' out_rep_seq.fasta | wc -l
 $CONDA_DEFAULT_ENV/bin/muscle -align out_rep_seq.fasta -output out_al.fasta
-STOP manually reposition human on top
+# STOP!! manually reposition human on top —this was fixed in the cluster version
 wget https://github.com/soedinglab/hh-suite/raw/master/scripts/reformat.pl
 perl reformat.pl fas a3m out_al.fasta out.a3m
 $CONDA_DEFAULT_ENV/bin/colabfold_batch test.clean.a3m test3 --cpu --model-type AlphaFold2-multimer-v2 --data '../ColabFoldData' --pair-mode paired
